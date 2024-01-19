@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2024 by anonymous (http://jsbin.com/jefewifiye/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html>
+<head>
+<title>횡스크롤 게임</title>
+<style>
+    body { margin: 0; overflow: hidden; }
+    #gameCanvas { background: #f0f0f0; }
+    #restartButton { display: none; position: absolute; top: 20px; left: 20px; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<button id="restartButton">재시작</button>
+
+<script>
+    var canvas = document.getElementById('gameCanvas');
+    var ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    var player = {
+        x: 50,
+        y: canvas.height - 150,
+        width: 50,
+        height: 50,
+        color: '#ff0000',
+        velocityY: 0,
+        jumpForce: -15,
+        gravity: 0.5,
+        isJumping: false,
+        doubleJump: true, // 더블 점프 가능 여부
+        jumpCount: 0 // 현재 점프 횟수
+    };
+
+    var obstacles = [];
+    var obstacleSpeed = 5;
+    var initialObstacleInterval = 2000;
+    var obstacleInterval = initialObstacleInterval;
+    var lastObstacleTime = 0;
+    var gameOver = false;
+    var startTime = Date.now();
+
+    function update(time) {
+        if (gameOver) return;
+
+        if (!lastObstacleTime || time - lastObstacleTime > obstacleInterval) {
+            lastObstacleTime = time;
+            createObstacle();
+            obstacleInterval = initialObstacleInterval - (Date.now() - startTime) / 1000;
+            if (obstacleInterval < 500) obstacleInterval = 500; // 최소 간격 설정
+        }
+
+        playerUpdate();
+        obstaclesUpdate();
+
+        if (checkCollision()) {
+            endGame();
+            return;
+        }
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function playerUpdate() {
+        if (player.isJumping) {
+            player.velocityY += player.gravity;
+            player.y += player.velocityY;
+
+            if (player.y > canvas.height - 150) {
+                player.isJumping = false;
+                player.y = canvas.height - 150;
+                player.velocityY = 0;
+                player.jumpCount = 0; // 땅에 닿으면 점프 횟수 초기화
+            }
+        }
+    }
+
+    function obstaclesUpdate() {
+        for (var i = 0; i < obstacles.length; i++) {
+            obstacles[i].x -= obstacleSpeed;
+            if (obstacles[i].x + obstacles[i].width < 0) {
+                obstacles.splice(i, 1);
+                i--;
+            }
+        }
+    }
+
+    function createObstacle() {
+        var obstacle = {
+            x: canvas.width,
+            y: canvas.height - 150,
+            width: 30,
+            height: 50,
+            color: '#000000'
+        };
+        obstacles.push(obstacle);
+    }
+
+    function checkCollision() {
+        for (var obstacle of obstacles) {
+            if (player.x < obstacle.x + obstacle.width &&
+                player.x + player.width > obstacle.x &&
+                player.y < obstacle.y + obstacle.height &&
+                player.y + player.height > obstacle.y) {
+                return true; // 충돌 발생
+            }
+        }
+        return false;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+
+        for (var obstacle of obstacles) {
+            ctx.fillStyle = obstacle.color;
+            ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+    }
+
+    function endGame() {
+        gameOver = true;
+        document.getElementById('restartButton').style.display = 'block';
+    }
+
+    document.getElementById('restartButton').addEventListener('click', function() {
+        resetGame();
+    });
+
+    function resetGame() {
+        obstacles = [];
+        lastObstacleTime = 0;
+        gameOver = false;
+        startTime = Date.now();
+        obstacleInterval = initialObstacleInterval;
+        player.jumpCount = 0; // 게임 리셋 시 점프 횟수도 리셋
+        document.getElementById('restartButton').style.display = 'none';
+        requestAnimationFrame(update);
+    }
+
+    window.addEventListener('keydown', function(e) {
+        if (e.keyCode === 32) {
+            if (!player.isJumping) {
+                // 첫 번째 점프
+                player.isJumping = true;
+                player.velocityY = player.jumpForce;
+                player.jumpCount = 1;
+            } else if (player.doubleJump && player.jumpCount < 2) {
+                // 더블 점프 (공중에 있을 때 한 번 더 점프할 수 있음)
+                player.velocityY = player.jumpForce;
+                player.jumpCount++;
+            }
+        }
+    });
+
+    requestAnimationFrame(update);
+</script>
+</body>
+</html>
